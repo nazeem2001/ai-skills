@@ -1,0 +1,52 @@
+{
+  "skill_name": "zustand",
+  "evals": [
+    {
+      "id": 0,
+      "name": "nextjs-cart-store-ssr-persist",
+      "prompt": "I'm building a Next.js App Router e-commerce app (React 19, TypeScript strict). Create a shopping cart with zustand: add/remove items, update quantities, a derived cart total and item count, persisted to localStorage so the cart survives reloads. It must work with SSR without hydration errors or state leaking between requests, and components like the header badge shouldn't re-render when unrelated cart fields change. Give me the store plus a CartBadge and AddToCartButton component wired up correctly.",
+      "expected_output": "A per-request store factory (createStore/vanilla) exposed via React Context provider (not a global module store), persist middleware with correct hydration handling (skipHydration + rehydrate in effect, or hasHydrated gating), typed with create<T>()() currying or equivalent, atomic/useShallow selectors in components, derived values computed in selectors not stored",
+      "files": [],
+      "assertions": [
+        "Store is created via a factory (createStore from zustand/vanilla) provided through React Context \u2014 NOT a module-level global create() store (prevents SSR cross-request state leaks)",
+        "Persist hydration is handled safely for SSR: skipHydration + manual rehydrate in an effect, OR a hasHydrated/useHydration gate, OR a deferred-read wrapper (no raw persisted read during first render)",
+        "Cart total and item count are derived in selectors/hooks, not stored as extra state fields that must be manually kept in sync",
+        "CartBadge subscribes with an atomic or useShallow selector so it doesn't re-render on unrelated cart field changes; no whole-store destructuring anywhere",
+        "persist uses partialize (or equivalent) so only data fields are persisted, never actions",
+        "TypeScript is strict and store typing uses the curried create<T>()()/createStore<T>()() pattern"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "fix-rerender-storm-dashboard",
+      "prompt": "My React dashboard is dog slow. Every widget re-renders whenever ANY store value changes, and React DevTools shows the whole tree flashing 60 times a second because of the FPS meter. There's also a console warning about getSnapshot being cached. The store and components are in dashboard-store.tsx \u2014 fix the performance without changing what the UI shows.",
+      "expected_output": "Atomic selectors replacing whole-store selection in ThemeToggle/MetricCard, useShallow (or equality fn) for the SelectedSummary derived-array selector fixing the getSnapshot warning, FPS meter converted to transient updates via store.subscribe + ref (no React re-render at 60fps), actions accessed via stable references, explanation of the re-render model",
+      "files": [
+        "files/dashboard-store.tsx"
+      ],
+      "assertions": [
+        "ThemeToggle no longer calls the store hook without a selector \u2014 it uses atomic selectors for theme and its action",
+        "MetricCard selects only its own metric and selection status instead of destructuring metrics/selectedMetricIds/selectMetric from the whole store",
+        "SelectedSummary's derived-array selector is made stable (useShallow wrapper or equivalent), which resolves the 'getSnapshot should be cached' warning",
+        "FpsMeter uses transient updates (store.subscribe writing to a ref / direct DOM update) so 60fps fps changes do not cause React re-renders",
+        "UI output is preserved: theme toggle, metric card content and selection, selected summary text, and fps display all still work as before",
+        "No selector returns a fresh object/array/function without a stability fix (v5 infinite-loop safety)"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "slices-architecture-refactor",
+      "prompt": "Our zustand store has grown to ~40 fields covering auth, notifications, feature flags, and a multi-step onboarding wizard, all in one create() call and components destructure the whole store everywhere. We're on zustand v5 + TypeScript. Restructure this properly: I want maintainable code, devtools support with named actions, and only the onboarding progress persisted. Show the store setup and how components should consume it.",
+      "expected_output": "Slices pattern with correct StateCreator typing (mutator tuples matching middleware order), devtools+persist composed in correct order with partialize for onboarding only, action names in devtools set calls, guidance that components use atomic selectors/custom hooks instead of destructuring, possibly separate stores where domains are independent",
+      "files": [],
+      "assertions": [
+        "State is restructured into typed slices (StateCreator with full-store type + mutator tuples matching the middleware stack) and/or cleanly separated stores per domain \u2014 not one flat 40-field blob",
+        "devtools is the outermost middleware and actions pass a name as set's third argument (e.g. 'auth/login')",
+        "persist uses partialize so ONLY onboarding progress is persisted (auth/notifications/flags are not)",
+        "Middleware is applied only on the combined store, not inside individual slices",
+        "Consumption guidance/examples use atomic selectors or exported custom hooks instead of whole-store destructuring",
+        "TypeScript compiles conceptually: curried create<T>()(), no `any`, mutator tuple order matches middleware order"
+      ]
+    }
+  ]
+}
